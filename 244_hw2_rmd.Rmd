@@ -1,0 +1,116 @@
+---
+title: "ESM 244 - Assignment 2"
+author: "Alexander Stejskal"
+date: "February 10, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Task 1. Data wrangling and visualization - cetaceans in capitvity
+
+## Part 1 - Add packages and import data
+
+Add packages
+```{r}
+library(readr)
+library(tidyverse)
+library(ggplot2)
+
+```
+
+
+Import dataset "captive_cetacean.csv"
+```{r}
+cetacean <- read_csv("~/winter 2019/esm 244 - adv data/assignment 2/244_hw2/captive_cetacean.csv")
+```
+
+
+## Part 2 - Data wrangling
+
+Explore data
+```{r}
+head(cetacean)
+```
+
+Explore the results within the "species" column
+```{r}
+count(cetacean, species)
+```
+
+Explore the results within the "acquisitions" column
+```{r}
+#count(cetacean, acquisiton)
+```
+
+Explore the results within the "status" column
+```{r}
+count(cetacean, status)
+```
+
+```{r}
+count(cetacean,currently)
+
+head(sort(cetacean$currently, decreasing = TRUE), 20)
+
+place <- cetacean$currently %>% 
+  
+
+
+```
+
+
+```{r}
+acq_currently_count <- cetacean %>% 
+  select(acquisition, status, currently) %>% 
+  filter(acquisition == 'Born'|acquisition == 'Rescue' | acquisition == 'Capture') %>%
+  #filter(status == 'Alive' | status == 'Died'| status == 'Released') %>% 
+  count(acquisition,currently) 
+  
+
+acq_currently_count
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
