@@ -1,0 +1,360 @@
+---
+title: "ESM 244 - Assignment 2"
+author: "Alexander Stejskal"
+date: "February 10, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Task 1. Data wrangling and visualization - cetaceans in capitvity
+
+## Part 1 - Add packages and import data
+
+Add packages
+```{r, message=FALSE, warning=FALSE}
+library(readr)
+library(tidyverse)
+library(ggplot2)
+
+```
+
+Import dataset 'captive_cetacean.csv'
+```{r, message=FALSE,warning=FALSE}
+cetacean <- read_csv("~/winter 2019/esm 244 - adv data/assignment 2/244_hw2/captive_cetacean.csv")
+```
+
+
+## Part 2 - Data wrangling and Exploration
+
+Explore data
+```{r, results='hide'}
+head(cetacean)
+```
+
+View the data types
+```{r, results='hide'}
+str(cetacean)
+```
+
+Explore the results within the 'species' column
+```{r, results='hide'}
+count(cetacean, acquisition)
+```
+
+Explore the results within the 'status' column
+```{r, results='hide'}
+count(cetacean, status)
+```
+
+Filter 'status' column in 'cetacean' so only 'Alive' and 'Died' are shown
+```{r}
+df_status <- filter(cetacean, status == "Alive"| status == "Died")
+```
+
+
+Filter 'acquisiton' column in 'df_status' so only results for 'Born', 'Capture', and 'Rescue' are shown
+```{r}
+df_acq_status <- filter(df_status, acquisition == 'Born'| acquisition == 'Capture' | acquisition == 'Rescue')
+```
+
+
+## Part 3 - Visualize data
+
+Create histogram on the categorical variable 'acquisition' to display the number of animals that are alive or have died based on their method of acquisition 
+```{r}
+acq_status_hist <- ggplot(df_acq_status, aes(acquisition)) +
+  geom_bar(aes(fill = status), width = 0.5) +
+  ggtitle("Cetacean Mortality by Acquisition Method\n") +
+  xlab("Acquisition Method") +
+  ylab("Count") +
+  labs(fill = "Status") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(color = "black"), panel.background = element_rect(fill = "white")) +
+  scale_y_continuous(expand = c(0,0))+
+  theme(plot.title = element_text(color = "black", size = 15, face = "bold", hjust = 0.5)) +
+  theme(axis.title = element_text(size = 12))+
+  theme(axis.text = element_text(size = 10, color = "black")) +
+  theme(legend.title = element_text(color = "black"))
+  
+
+acq_status_hist
+
+```
+
+
+
+# Task 2 - Parameter Estimation - Wild Fish Catch
+
+
+## Part 1 - Add packages and import data
+
+Import dataset "fish_catch.csv"
+```{r, message=FALSE, warning=FALSE}
+fish_catch <- read_csv("~/winter 2019/esm 244 - adv data/assignment 2/244_hw2_22/244_hw2_2_17_2019/fish_catch.csv")
+```
+
+Add packages
+```{r,message=FALSE,warning=FALSE}
+library(tidyverse)
+library(Ecdat)
+library(plm)
+library(lmtest)
+library(car)
+library(latex2exp)
+library(stargazer)
+```
+
+
+## Part 2 - Data Wrangling and Exploration
+
+Rename columns in 'fish_catch'
+```{r}
+colnames(fish_catch) <- c("year", "wild_catch", "farmed_fish", "TFP")
+```
+
+Remove the first and last 4 rows of "fish_catch"
+```{r}
+df_fish <- fish_catch[-c(1:4,68:71),]
+```
+
+Add column with index number for each year (ex. 1950 = 0, 1951 = 1, etc.)
+```{r}
+df_fish$index_year <- 0:62
+```
+
+Change columns to numeric
+```{r}
+df_fish[,2:4] <- sapply(df_fish[,2:4], as.numeric)
+```
+
+Remove unnecessary columns
+```{r, eval=FALSE}
+df_fish$year <- NULL
+df_fish$farmed_fish <- NULL
+df_fish$TFP <- NULL
+```
+
+
+## Part 3 - Create an exploratory graph
+
+Create a graph of wild catch over time
+```{r}
+ggplot(df_fish, aes(x = index_year, y = wild_catch)) + 
+  geom_point() +
+  theme_bw() +
+  scale_y_continuous(breaks = c(20,40,60,80,100)) +
+  annotate(geom = 'text', x = 50,y = 50, label = TeX("N(t) = $\\frac{90}{\\1 + 4.3e^{\\-0.05225 t}}", output = 'character'),parse=TRUE)
+```
+
+
+The data appears to follow a logistic growth trend. 
+
+Logistic growth equation: *N(t) = A/(1+Be^-rt)*
+
+**Estimate for K/A: ~ 90**
+
+**Estimate for N0: ~ 17** 
+
+**Estimate for B: ~ 4.3** *(BEstimate = (90 - 17)/17)*
+
+
+
+Create a subset of the data that is just in the 'exponential growth phase.' Take the natural log of the count and create a basic scatterplot of time versus ln(wild_catch)
+```{r}
+wc_time_sp <- plot(df_fish$index_year[0:10],log(df_fish$wild_catch[0:10]))
+```
+
+Find the slope of that line to get 'r' (growth rate constant)
+```{r}
+r_est <- lm(log(df_fish$wild_catch[0:10]) ~ df_fish$index_year[0:10]) # R ~ 0.05225
+```
+
+
+
+## Part 4 - Use nonlinear least squares to find parameters for the model describing wild catch over time
+
+Non-linear least squares model
+```{r, results='hide'}
+wild_fit <- nls(wild_catch ~ A/(1+B*exp(-r*index_year)),
+                start = list(A = 90, B = 4.3, r = 0.05225),
+                data = df_fish, trace = TRUE)
+```
+```{r}
+summary(wild_fit)
+```
+
+NLS parameter outcomes for 'wild_fit':
+
+**A = 100.2784** - Million tons of fish caught
+
+**B = 4.316327** - Proportion of carrying capacity caught in year *t*
+
+**r = 0.06988672** - growth rate
+
+
+Create new variables for A, B, and r
+```{r}
+A <- coef(wild_fit)[1]
+B <- coef(wild_fit)[2]
+r <- coef(wild_fit)[3]
+```
+
+Create a new sequence containing the series of times fish catch will be predicted
+```{r}
+time_seq <- seq(0,100, length = 100)
+```
+
+Using the parameters (A, B, and r) and the time sequence, predict the tons of fish caught for the logistic growth model
+```{r}
+catch_pred <- A/(1+B*exp(-r*time_seq)) # logistic growth model
+```
+
+Bind time sequence and prediction data into new data frame
+```{r}
+pred_df <- data.frame(time_seq, catch_pred)
+```
+
+
+## Part 5 - Prepare a finalized graph showing original data and model output
+
+Graph showing model output (yellow line) and original data (blue dots)
+```{r}
+ggplot(df_fish, aes(x = index_year, y = wild_catch)) + 
+  geom_point(colour = "blue", size = 3) + 
+  theme_bw() +
+  geom_line(data = pred_df, aes(x = time_seq, y = catch_pred), colour = "orange", size = 1) + 
+  xlab("Year") +
+  ylab("Wild Fish Catch (million tons)") +
+  ggtitle("Wild Fish Catch (1950-2050)") +
+  scale_x_continuous(labels = c("1950", "1975", "2000", "2025", "2050"))+
+  theme(axis.title = element_text(size = 14)) +
+  theme(axis.text = element_text(color = "black")) +
+  theme(title = element_text(size = 16))
+```
+
+
+
+# Task 3 - Bootstrapped confidence interval for proportions
+
+
+## Part 1 - Add packages and create vector
+
+Add packages
+```{r, message=FALSE,warning=FALSE}
+library(tidyverse)
+library(boot)
+library(naniar)
+library(simputation)
+```
+
+
+Create vector showing 22/36 (61%) UCSB communbity members that identify as nonbinary/genderqueer have experienced "exclusionary, offensive, hostile, or intimidating conduct"
+```{r}
+v1 <- rbinom(36, 1, 0.61) # n = 36;'no' = 0, 'yes' = 1; 61% responded 'yes'
+```
+
+
+## Part 2 - Create a function and bootstrap
+
+Create function to calculate proportion of varying vectors (x) of index (i)
+```{r}
+prop_fun <- function(x,i){sum(x[i]==1)/length(x)}
+```
+
+
+10000 bootstrap samples:
+```{r}
+boot_10000 <- boot(v1, prop_fun, R = 10000)
+
+boot_10000$t0
+
+boot_10000
+```
+
+
+## Part 3 - Create histogram of bootstrapped proprtions
+
+Histogram of 'boot_10000' proportions
+```{r}
+ggplot() +
+  aes(boot_10000$t) +
+  geom_histogram(bins = 22)
+```
+
+
+## Part 4 - Find and interpret a bootstrapped 95% confidence interval
+
+Find a bootstrapped 95% confidence interval for boot_10000
+```{r, warning=FALSE}
+boot.ci(boot_10000, conf = 0.95)
+```
+
+**The mean proportion of nonbinary/genderqueer UCSB students experiencing exclusionary, hostile, or intimidating behavior at UCSB is 0.61 students (n = 36), with a bootstrapped 95% confidence interval of [0.39,0.72] (n = 10,000 bootstrap samples).**
+
+
+
+# Task 4 - Watch 3 RStudio::conf talks
+
+
+**Melt the clock Tidy time series analysis – Earo Wang**
+
+* slide(), tile(), and roll() function
+
+* fable() function makes forecasting tables
+
+* Question: How are the slide(), tile(), and stretch() tables exported and are they still interactive outside RStudio?
+
+
+
+**Pagedown: Creating beautiful PDFs with Rmarkdown and CSS – Yihui Xie**
+
+* You can make business cards in Rmarkdown
+
+* “pagedown::” allows export of nicely formatted posters
+
+* Question: do the posters have to be created using CSS and then exported using “pagedown::” or can you simply build them in RStudio?
+
+
+
+**The next million R users – Carl Howe**
+
+* RStudio sent out a survey on how and why users started coding in R. 3,300 users responded and 10% of them were Spanish-speaking
+
+* Top 10 responding countries: USA, UK, Argentina, Canada, Germany, Austria, France, India, Spain, Brazil
+
+* Question: How can RStudio expand to developing countries that are currently working to integrate technology into their everyday life and take advantage of the opportunity to teach new technology users how to code right out of the gate?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
